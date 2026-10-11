@@ -1,0 +1,826 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>3D British 10P Coin Spinner</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Favicon referencing head.png -->
+    <link rel="icon" type="image/png" href="head.png">
+    <link rel="apple-touch-icon" href="head.png">
+
+    <style>
+        * {
+            box-sizing: border-box;
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        html, body {
+            height: 100dvh;
+            height: 100vh;
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
+            background: radial-gradient(circle at 50% 30%, #1e293b 0%, #0f172a 60%, #020617 100%);
+            font-family: 'Inter', sans-serif;
+            color: #f8fafc;
+        }
+
+        /* Responsive layout ensuring no content goes behind mobile navigation/address bars */
+        .app-layout {
+            height: 100dvh;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding-top: max(16px, env(safe-area-inset-top));
+            /* Elevated bottom clearance so controls are never behind mobile browser address bars */
+            padding-bottom: max(60px, calc(env(safe-area-inset-bottom) + 50px));
+            padding-left: max(16px, env(safe-area-inset-left));
+            padding-right: max(16px, env(safe-area-inset-right));
+        }
+
+        /* 3D Perspective container */
+        .perspective-view {
+            perspective: 1200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* 3D Coin Parent Container */
+        .coin-3d {
+            width: 230px;
+            height: 230px;
+            position: relative;
+            transform-style: preserve-3d;
+            will-change: transform;
+            cursor: pointer;
+            border-radius: 50%;
+            transition: transform 0.1s linear;
+        }
+
+        @media (min-height: 700px) and (min-width: 640px) {
+            .coin-3d {
+                width: 270px;
+                height: 270px;
+            }
+        }
+
+        /* Coin Face Base Styles using exact image sources head.png and tails.png */
+        .coin-face {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            box-shadow: 
+                0 0 0 1px rgba(255, 255, 255, 0.25),
+                inset 0 0 12px rgba(255, 255, 255, 0.4),
+                inset 0 0 25px rgba(0, 0, 0, 0.6),
+                0 20px 30px rgba(0, 0, 0, 0.7);
+        }
+
+        /* Obverse (Heads side) background image pointing to head.png */
+        .face-heads {
+            transform: translateZ(6px);
+            background-image: url('head.png');
+        }
+
+        /* Reverse (Tails side) background image pointing to tails.png */
+        .face-tails {
+            transform: rotateY(180deg) translateZ(6px);
+            background-image: url('tails.png');
+        }
+
+        /* 3D Specular Light Overlay for metallic glint */
+        .metallic-overlay {
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            background: radial-gradient(circle at 35% 25%, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0) 60%),
+                        linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(0,0,0,0.35) 100%);
+            pointer-events: none;
+        }
+
+        /* Multi-layer stacked 3D rim edges simulating physical metal coin thickness */
+        .coin-edge {
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            background: linear-gradient(90deg, #64748b 0%, #cbd5e1 25%, #475569 50%, #f1f5f9 75%, #475569 100%);
+            border: 2px solid #94a3b8;
+            pointer-events: none;
+        }
+
+        /* Dynamic Floor Shadow beneath coin */
+        .coin-shadow {
+            width: 210px;
+            height: 22px;
+            background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0) 75%);
+            border-radius: 50%;
+            transition: transform 0.2s ease-out, opacity 0.2s ease-out;
+            pointer-events: none;
+        }
+
+        /* High contrast floating bottom panel elevated above phone gesture bars */
+        .elevated-bottom-panel {
+            background: rgba(15, 23, 42, 0.92);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(71, 85, 105, 0.6);
+            box-shadow: 0 12px 30px -5px rgba(0, 0, 0, 0.6);
+            border-radius: 24px;
+        }
+
+        .cinzel-font {
+            font-family: 'Cinzel', serif;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-layout">
+        
+        <!-- Header Bar -->
+        <header class="w-full text-center py-1 shrink-0">
+            <h1 class="text-base sm:text-lg font-black tracking-widest text-slate-100 uppercase cinzel-font">
+                British 10 Pence Coin
+            </h1>
+            <p class="text-[11px] text-slate-400 font-medium tracking-wide">Touch screen or tap coin to spin</p>
+        </header>
+
+        <!-- Main Interactive Area -->
+        <main id="coin-interactive-area" class="flex-1 flex flex-col items-center justify-center relative cursor-pointer my-auto">
+            
+            <!-- Stats Counter Bar -->
+            <div class="mb-3 sm:mb-5 flex items-center gap-3 bg-slate-900/90 border border-slate-700/70 rounded-full px-4 py-1.5 shadow-xl backdrop-blur-md text-xs sm:text-sm">
+                <div class="flex items-center gap-1.5">
+                    <span class="w-2.5 h-2.5 rounded-full bg-slate-200 shadow-sm"></span>
+                    <span class="text-slate-300">Heads: <strong id="heads-count" class="text-slate-100 font-bold">0</strong></span>
+                </div>
+                <div class="w-px h-3.5 bg-slate-700"></div>
+                <div class="flex items-center gap-1.5">
+                    <span class="w-2.5 h-2.5 rounded-full bg-slate-400 shadow-sm"></span>
+                    <span class="text-slate-300">Tails: <strong id="tails-count" class="text-slate-100 font-bold">0</strong></span>
+                </div>
+                <div class="w-px h-3.5 bg-slate-700"></div>
+                <div>
+                    <span class="text-slate-300">Total: <strong id="total-count" class="text-sky-400 font-bold">0</strong></span>
+                </div>
+            </div>
+
+            <!-- Perspective Container -->
+            <div class="perspective-view my-2">
+                <div id="coin" class="coin-3d">
+                    
+                    <!-- 3D Edge Thickness Layers -->
+                    <div class="coin-edge" style="transform: translateZ(-5px);"></div>
+                    <div class="coin-edge" style="transform: translateZ(-3px);"></div>
+                    <div class="coin-edge" style="transform: translateZ(-1px);"></div>
+                    <div class="coin-edge" style="transform: translateZ(1px);"></div>
+                    <div class="coin-edge" style="transform: translateZ(3px);"></div>
+                    <div class="coin-edge" style="transform: translateZ(5px);"></div>
+
+                    <!-- HEADS (Obverse) Side -->
+                    <div id="face-heads-el" class="coin-face face-heads">
+                        <div class="metallic-overlay"></div>
+                    </div>
+
+                    <!-- TAILS (Reverse) Side -->
+                    <div id="face-tails-el" class="coin-face face-tails">
+                        <div class="metallic-overlay"></div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Dynamic Floor Shadow -->
+            <div id="coin-shadow" class="coin-shadow mt-3"></div>
+
+            <!-- Result Feedback Text -->
+            <div class="mt-3 text-center h-8 flex items-center justify-center">
+                <p id="instruction-text" class="text-slate-400 text-xs sm:text-sm font-semibold animate-pulse">
+                    Tap anywhere to spin
+                </p>
+                <h2 id="result-text" class="text-base sm:text-lg font-black tracking-wider text-slate-100 opacity-0 transition-opacity duration-300 cinzel-font"></h2>
+            </div>
+        </main>
+
+        <!-- Elevated Floating Bottom Controls Bar -->
+        <footer class="w-full max-w-md mx-auto px-4 py-3 elevated-bottom-panel shrink-0 flex flex-col gap-3">
+            
+            <!-- Main Trigger Button -->
+            <button id="spin-button" class="w-full py-3.5 px-6 rounded-xl font-black text-sm sm:text-base text-slate-900 bg-gradient-to-r from-slate-100 via-slate-200 to-slate-300 hover:from-white hover:to-slate-200 active:scale-[0.98] transition-all shadow-lg flex items-center justify-center gap-2 cinzel-font tracking-wider">
+                <span>🪙</span>
+                <span>SPIN COIN</span>
+            </button>
+
+            <!-- History Log & Reset Button -->
+            <div class="flex items-center justify-between text-xs text-slate-400 pt-1 border-t border-slate-700/60">
+                <div class="flex items-center gap-2 overflow-hidden">
+                    <span class="font-medium text-slate-400 shrink-0">History:</span>
+                    <div id="history-pills" class="flex items-center gap-1.5 overflow-x-auto">
+                        <span class="text-slate-400 italic">None</span>
+                    </div>
+                </div>
+
+                <button id="reset-button" class="text-slate-400 hover:text-rose-400 font-bold transition-colors shrink-0 ml-2 py-0.5">
+                    Reset
+                </button>
+            </div>
+        </footer>
+
+    </div>
+
+    <script>
+        // State variables
+        let isSpinning = false;
+        let currentRotation = 0;
+        let headsCount = 0;
+        let tailsCount = 0;
+        let history = [];
+
+        // Element references
+        const coin = document.getElementById('coin');
+        const coinShadow = document.getElementById('coin-shadow');
+        const spinButton = document.getElementById('spin-button');
+        const interactiveArea = document.getElementById('coin-interactive-area');
+        const resultText = document.getElementById('result-text');
+        const instructionText = document.getElementById('instruction-text');
+        const headsCountEl = document.getElementById('heads-count');
+        const tailsCountEl = document.getElementById('tails-count');
+        const totalCountEl = document.getElementById('total-count');
+        const historyPills = document.getElementById('history-pills');
+        const resetButton = document.getElementById('reset-button');
+        const faceHeadsEl = document.getElementById('face-heads-el');
+        const faceTailsEl = document.getElementById('face-tails-el');
+
+        // Verify image availability and apply fallback if running locally before image upload
+        function setupImageFallback(element, primaryUrl, fallbackSvg) {
+            const img = new Image();
+            img.onload = () => {
+                element.style.backgroundImage = `url('${primaryUrl}')`;
+            };
+            img.onerror = () => {
+                element.style.backgroundImage = `url("${fallbackSvg}")`;
+            };
+            img.src = primaryUrl;
+        }
+
+        // SVG Fallbacks (rendered if head.png or tails.png are not found in the root directory yet)
+        const headsFallbackSvg = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 300'><circle cx='150' cy='150' r='140' fill='%231e293b' stroke='%23cbd5e1' stroke-width='8'/><circle cx='150' cy='150' r='125' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-dasharray='4,4'/><text x='150' y='140' font-size='24' fill='%23f8fafc' font-family='serif' text-anchor='middle' font-weight='bold'>ELIZABETH II</text><text x='150' y='175' font-size='28' fill='%23cbd5e1' font-family='serif' text-anchor='middle' font-weight='bold'>HEADS</text></svg>";
+        const tailsFallbackSvg = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 300'><circle cx='150' cy='150' r='140' fill='%230f172a' stroke='%23cbd5e1' stroke-width='8'/><circle cx='150' cy='150' r='125' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-dasharray='4,4'/><text x='150' y='140' font-size='24' fill='%23f8fafc' font-family='serif' text-anchor='middle' font-weight='bold'>10 PENCE</text><text x='150' y='180' font-size='42' fill='%23cbd5e1' font-family='serif' text-anchor='middle' font-weight='bold'>10</text></svg>";
+
+        setupImageFallback(faceHeadsEl, 'head.png', headsFallbackSvg);
+        setupImageFallback(faceTailsEl, 'tails.png', tailsFallbackSvg);
+
+        // Execute dynamic 3D spin logic
+        function executeCoinSpin() {
+            if (isSpinning) return;
+            isSpinning = true;
+
+            // Hide text prompts during spin
+            instructionText.style.opacity = '0';
+            resultText.style.opacity = '0';
+
+            // 50/50 probability
+            const outcome = Math.random() < 0.5 ? 'Heads' : 'Tails';
+            
+            // Random multi-rotation turns (between 6 and 9 full rotations)
+            const fullTurns = 360 * (6 + Math.floor(Math.random() * 4));
+            const faceOffset = outcome === 'Heads' ? 0 : 180;
+            
+            // Calculate total target angle ensuring consistent forward rotation
+            const targetRotation = Math.ceil(currentRotation / 360) * 360 + fullTurns + faceOffset;
+            currentRotation = targetRotation;
+
+            // Apply smooth physics transition easing
+            coin.style.transition = 'transform 2.8s cubic-bezier(0.15, 0.85, 0.2, 1)';
+            coin.style.transform = `rotateY(${currentRotation}deg) rotateX(${Math.sin(currentRotation) * 14}deg) translateY(-20px)`;
+
+            // Animate dynamic floor shadow
+            coinShadow.style.transition = 'transform 1.4s ease-out, opacity 1.4s ease-out';
+            coinShadow.style.transform = 'scale(0.4)';
+            coinShadow.style.opacity = '0.25';
+
+            setTimeout(() => {
+                coinShadow.style.transition = 'transform 1.4s ease-in, opacity 1.4s ease-in';
+                coinShadow.style.transform = 'scale(1)';
+                coinShadow.style.opacity = '1';
+            }, 1400);
+
+            // Complete spin landing sequence
+            setTimeout(() => {
+                isSpinning = false;
+                coin.style.transform = `rotateY(${currentRotation}deg) rotateX(0deg) translateY(0px)`;
+
+                if (outcome === 'Heads') {
+                    headsCount++;
+                    resultText.textContent = '👑 HEADS';
+                } else {
+                    tailsCount++;
+                    resultText.textContent = '🦁 TAILS';
+                }
+
+                resultText.style.opacity = '1';
+
+                // Update UI counters
+                headsCountEl.textContent = headsCount;
+                tailsCountEl.textContent = tailsCount;
+                totalCountEl.textContent = headsCount + tailsCount;
+
+                // Update history pills
+                history.unshift(outcome);
+                if (history.length > 5) history.pop();
+                renderHistoryUI();
+
+            }, 2800);
+        }
+
+        // Render recent history log
+        function renderHistoryUI() {
+            if (history.length === 0) {
+                historyPills.innerHTML = '<span class="text-slate-400 italic">None</span>';
+                return;
+            }
+            historyPills.innerHTML = history.map(h => {
+                return `<span class="px-2 py-0.5 rounded-md text-[11px] font-bold border bg-slate-800 text-slate-200 border-slate-700">${h[0]}</span>`;
+            }).join('');
+        }
+
+        // Event Bindings
+        spinButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            executeCoinSpin();
+        });
+
+        interactiveArea.addEventListener('click', () => {
+            executeCoinSpin();
+        });
+
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' || e.code === 'Enter') {
+                e.preventDefault();
+                executeCoinSpin();
+            }
+        });
+
+        resetButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            headsCount = 0;
+            tailsCount = 0;
+            history = [];
+            headsCountEl.textContent = '0';
+            tailsCountEl.textContent = '0';
+            totalCountEl.textContent = '0';
+            resultText.style.opacity = '0';
+            instructionText.style.opacity = '1';
+            renderHistoryUI();
+        });
+    </script>
+</body>
+</html>
+Bazzarn
+
+            <!-- Ambient Glow Effect when playing -->
+            <div id="ambient-glow" class="absolute w-64 h-64 rounded-full bg-brass/10 blur-3xl pointer-events-none transition-opacity duration-500 opacity-0"></div>
+
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="w-full py-3 px-6 glass-panel border-t border-brass/20 text-center text-xs font-playfair italic text-parchment/60">
+        Crafted with authentic mechanical styling & Web Audio precision. Bazzarn
+    </footer>
+
+    <!-- Custom Modal Message Box (Replacing alert) -->
+    <div id="custom-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-panel rounded-2xl p-6 max-w-sm w-full border border-brass/50 text-center space-y-4 shadow-2xl">
+            <h3 id="modal-title" class="font-cinzel text-lg font-bold text-brass-light">Notice</h3>
+            <p id="modal-message" class="text-sm text-parchment/90 font-sans"></p>
+            <button onclick="closeModal()" class="w-full py-2.5 rounded-lg brass-gradient text-wood-dark font-cinzel font-bold shadow hover:opacity-90 transition">
+                OK
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        // Audio Context & Metronome State
+        let audioCtx = null;
+        let isPlaying = false;
+        let bpm = 100;
+        let timeSignature = 4; // beats per measure
+        let currentBeat = 0;
+        let currentMeasure = 0;
+        let soundStyle = 'wood';
+        let volume = 0.8;
+
+        // Scheduler timing variables
+        let timerID = null;
+        let nextNoteTime = 0.0;
+        let scheduleAheadTime = 0.1; // How far ahead to schedule audio (sec)
+        let lookahead = 25.0; // How frequently to call scheduling function (ms)
+
+        // Game & Practice Modes
+        let currentMode = 'standard'; // 'standard', 'trainer', 'accuracy'
+        let speedTrainerIncrement = 2;
+        let speedTrainerBars = 4;
+        let accuracyScore = 0;
+        let lastBeatTimestamp = 0;
+        let gameActive = false;
+
+        // DOM Elements
+        const playBtn = document.getElementById('play-btn');
+        const playIcon = document.getElementById('play-icon');
+        const playBtnText = document.getElementById('play-btn-text');
+        const bpmSlider = document.getElementById('bpm-slider');
+        const bpmInput = document.getElementById('bpm-input');
+        const timeSigSelect = document.getElementById('time-signature');
+        const soundStyleSelect = document.getElementById('sound-style');
+        const volumeSlider = document.getElementById('volume-slider');
+        const volumeVal = document.getElementById('volume-val');
+        const tapTempoBtn = document.getElementById('tap-tempo-btn');
+        const pendulumContainer = document.getElementById('pendulum-container');
+        const slidingWeight = document.getElementById('sliding-weight');
+        const beatDotsContainer = document.getElementById('beat-dots-container');
+        const beatCounterDisplay = document.getElementById('beat-counter-display');
+        const ambientGlow = document.getElementById('ambient-glow');
+        const modeToggleBtn = document.getElementById('mode-toggle-btn');
+        const modeBtnText = document.getElementById('mode-btn-text');
+        const currentModeBadge = document.getElementById('current-mode-badge');
+        const gameControlsPanel = document.getElementById('game-controls-panel');
+        const gamePanelTitle = document.getElementById('game-panel-title');
+        const gameStatusBadge = document.getElementById('game-status-badge');
+        const speedTrainerSettings = document.getElementById('speed-trainer-settings');
+        const accuracyGameUi = document.getElementById('accuracy-game-ui');
+        const incrementSlider = document.getElementById('increment-slider');
+        const incrementVal = document.getElementById('increment-val');
+        const barsSlider = document.getElementById('bars-slider');
+        const barsVal = document.getElementById('bars-val');
+        const accuracyTapBtn = document.getElementById('accuracy-tap-btn');
+        const gameScoreDisplay = document.getElementById('game-score');
+        const gameFeedback = document.getElementById('game-feedback');
+
+        // Initialize Audio Context on first user gesture
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        // Update Sliding Weight Position visually based on BPM
+        function updateSlidingWeightPosition() {
+            // Range 40 to 208. At 40 BPM, weight is low (85%). At 208 BPM, weight is high (15%).
+            const percentage = 15 + ((208 - bpm) / (208 - 40)) * 70;
+            slidingWeight.style.top = `${percentage}%`;
+        }
+
+        // Render Beat Indicator Dots
+        function renderBeatDots() {
+            beatDotsContainer.innerHTML = '';
+            for (let i = 0; i < timeSignature; i++) {
+                const dot = document.createElement('div');
+                dot.className = `w-3 h-3 rounded-full border border-brass/50 transition-all duration-150 ${i === currentBeat && isPlaying ? (i === 0 ? 'bg-brass scale-125 shadow-lg' : 'bg-parchment scale-110') : 'bg-wood'}`;
+                dot.id = `beat-dot-${i}`;
+                beatDotsContainer.appendChild(dot);
+            }
+        }
+
+        // Web Audio Sound Synthesizer
+        function playTone(time, isAccent) {
+            if (!audioCtx) return;
+
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            const masterVol = volume;
+
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            if (soundStyle === 'wood') {
+                // Wooden block click simulation
+                osc.type = 'triangle';
+                const freq = isAccent ? 1200 : 800;
+                osc.frequency.setValueAtTime(freq, time);
+                osc.frequency.exponentialRampToValueAtTime(100, time + 0.03);
+
+                gainNode.gain.setValueAtTime(masterVol, time);
+                gainNode.gain.exponentialRampToValueAtTime(0.001, time + 0.035);
+
+                osc.start(time);
+                osc.stop(time + 0.035);
+            } else if (soundStyle === 'digital') {
+                // Modern clean digital click
+                osc.type = 'sine';
+                const freq = isAccent ? 1760 : 880;
+                osc.frequency.setValueAtTime(freq, time);
+
+                gainNode.gain.setValueAtTime(masterVol * 0.7, time);
+                gainNode.gain.exponentialRampToValueAtTime(0.001, time + 0.02);
+
+                osc.start(time);
+                osc.stop(time + 0.02);
+            } else if (soundStyle === 'bell') {
+                // Vintage bell chime on accent, wood click otherwise
+                if (isAccent) {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(2200, time);
+                    osc.frequency.exponentialRampToValueAtTime(440, time + 0.15);
+
+                    gainNode.gain.setValueAtTime(masterVol, time);
+                    gainNode.gain.exponentialRampToValueAtTime(0.001, time + 0.15);
+
+                    osc.start(time);
+                    osc.stop(time + 0.15);
+                } else {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(800, time);
+                    osc.frequency.exponentialRampToValueAtTime(100, time + 0.03);
+
+                    gainNode.gain.setValueAtTime(masterVol, time);
+                    gainNode.gain.exponentialRampToValueAtTime(0.001, time + 0.035);
+
+                    osc.start(time);
+                    osc.stop(time + 0.035);
+                }
+            }
+        }
+
+        // Scheduler Loop for sample-accurate timing
+        function nextNote() {
+            const secondsPerBeat = 60.0 / bpm;
+            nextNoteTime += secondsPerBeat; // Add beat duration
+            currentBeat = (currentBeat + 1) % timeSignature;
+
+            if (currentBeat === 0) {
+                currentMeasure++;
+                // Check Speed Trainer trigger
+                if (currentMode === 'trainer' && isPlaying) {
+                    if (currentMeasure % speedTrainerBars === 0) {
+                        let newBpm = bpm + speedTrainerIncrement;
+                        if (newBpm <= 208) {
+                            setBPM(newBpm);
+                        }
+                    }
+                }
+            }
+        }
+
+        function scheduleNote(beatNumber, time) {
+            const isAccent = (beatNumber === 0);
+            playTone(time, isAccent);
+
+            // Schedule visual update using requestAnimationFrame relative timing
+            const audioTime = audioCtx.currentTime;
+            const latency = time - audioTime;
+            
+            setTimeout(() => {
+                if (!isPlaying) return;
+                updateVisualBeat(beatNumber);
+            }, Math.max(0, latency * 1000));
+        }
+
+        function updateVisualBeat(beatNumber) {
+            currentBeat = beatNumber;
+            renderBeatDots();
+            beatCounterDisplay.textContent = `${currentBeat + 1} / ${timeSignature}`;
+            
+            // Pulse ambient glow
+            ambientGlow.style.opacity = '1';
+            setTimeout(() => { ambientGlow.style.opacity = '0'; }, 150);
+        }
+
+        function scheduler() {
+            // While there are notes that will need to play before the next interval, schedule them and advance the pointer.
+            while (nextNoteTime < audioCtx.currentTime + scheduleAheadTime) {
+                scheduleNote(currentBeat, nextNoteTime);
+                nextNote();
+            }
+            if (isPlaying) {
+                timerID = window.setTimeout(scheduler, lookahead);
+            }
+        }
+
+        // Pendulum Animation Loop synced with BPM
+        let animationFrameId;
+        function animatePendulum() {
+            if (!isPlaying) return;
+            const now = performance.now();
+            // Calculate angle based on sinusoidal harmonic motion matching BPM
+            const secondsPerBeat = 60.0 / bpm;
+            const cycleTime = secondsPerBeat * 2; // Full left-right-left cycle takes 2 beats
+            const progress = (now / 1000) % cycleTime / cycleTime;
+            const angle = Math.sin(progress * Math.PI * 2) * 22; // max 22 degrees swing
+
+            pendulumContainer.style.transform = `rotate(${angle}deg)`;
+            animationFrameId = requestAnimationFrame(animatePendulum);
+        }
+
+        // Start / Stop Metronome
+        function togglePlay() {
+            initAudio();
+            isPlaying = !isPlaying;
+
+            if (isPlaying) {
+                playBtnText.textContent = "STOP METRONOME";
+                playIcon.setAttribute('data-lucide', 'square');
+                lucide.createIcons();
+                playBtn.classList.remove('brass-gradient');
+                playBtn.classList.add('bg-red-700', 'text-white');
+
+                currentBeat = 0;
+                currentMeasure = 0;
+                nextNoteTime = audioCtx.currentTime + 0.05;
+                scheduler();
+                animatePendulum();
+
+                if (currentMode === 'accuracy') {
+                    gameActive = true;
+                    accuracyScore = 0;
+                    gameScoreDisplay.textContent = `Score: ${accuracyScore}`;
+                    gameFeedback.textContent = "Metronome running! Tap in sync!";
+                }
+            } else {
+                stopMetronome();
+            }
+        }
+
+        function stopMetronome() {
+            isPlaying = false;
+            gameActive = false;
+            clearTimeout(timerID);
+            cancelAnimationFrame(animationFrameId);
+            pendulumContainer.style.transform = 'rotate(0deg)';
+
+            playBtnText.textContent = "START METRONOME";
+            playIcon.setAttribute('data-lucide', 'play');
+            lucide.createIcons();
+            playBtn.classList.remove('bg-red-700', 'text-white');
+            playBtn.classList.add('brass-gradient');
+            ambientGlow.style.opacity = '0';
+            renderBeatDots();
+        }
+
+        // Set BPM helper
+        function setBPM(val) {
+            bpm = Math.max(40, Math.min(208, parseInt(val)));
+            bpmSlider.value = bpm;
+            bpmInput.value = bpm;
+            updateSlidingWeightPosition();
+        }
+
+        // Event Listeners for Controls
+        bpmSlider.addEventListener('input', (e) => {
+            setBPM(e.target.value);
+        });
+
+        bpmInput.addEventListener('change', (e) => {
+            setBPM(e.target.value);
+        });
+
+        timeSigSelect.addEventListener('change', (e) => {
+            timeSignature = parseInt(e.target.value);
+            currentBeat = 0;
+            renderBeatDots();
+        });
+
+        soundStyleSelect.addEventListener('change', (e) => {
+            soundStyle = e.target.value;
+        });
+
+        volumeSlider.addEventListener('input', (e) => {
+            volume = e.target.value / 100;
+            volumeVal.textContent = `${e.target.value}%`;
+        });
+
+        playBtn.addEventListener('click', togglePlay);
+
+        // Tap Tempo Logic
+        let tapTimes = [];
+        tapTempoBtn.addEventListener('click', () => {
+            const now = performance.now();
+            tapTimes.push(now);
+            if (tapTimes.length > 4) tapTimes.shift();
+
+            if (tapTimes.length > 1) {
+                let intervals = [];
+                for (let i = 1; i < tapTimes.length; i++) {
+                    intervals.push(tapTimes[i] - tapTimes[i-1]);
+                }
+                const avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+                let calculatedBpm = Math.round(60000 / avgInterval);
+                if (calculatedBpm >= 40 && calculatedBpm <= 208) {
+                    setBPM(calculatedBpm);
+                }
+            }
+        });
+
+        // Mode Toggling (Standard vs Speed Trainer vs Accuracy Game)
+        function toggleMode() {
+            if (currentMode === 'standard') {
+                currentMode = 'trainer';
+                currentModeBadge.textContent = "Speed Trainer";
+                modeBtnText.textContent = "Switch to Tap Accuracy Game";
+                gamePanelTitle.textContent = "Speed Trainer Mode";
+                gameControlsPanel.classList.remove('hidden');
+                speedTrainerSettings.classList.remove('hidden');
+                accuracyGameUi.classList.add('hidden');
+            } else if (currentMode === 'trainer') {
+                currentMode = 'accuracy';
+                currentModeBadge.textContent = "Accuracy Game";
+                modeBtnText.textContent = "Switch to Standard Metronome";
+                gamePanelTitle.textContent = "Tap Accuracy Challenge";
+                gameControlsPanel.classList.remove('hidden');
+                speedTrainerSettings.classList.add('hidden');
+                accuracyGameUi.classList.remove('hidden');
+            } else {
+                currentMode = 'standard';
+                currentModeBadge.textContent = "Standard";
+                modeBtnText.textContent = "Switch to Speed Trainer / Game";
+                gameControlsPanel.classList.add('hidden');
+                if (isPlaying) stopMetronome();
+            }
+        }
+
+        // Trainer Sliders
+        incrementSlider.addEventListener('input', (e) => {
+            speedTrainerIncrement = parseInt(e.target.value);
+            incrementVal.textContent = `${speedTrainerIncrement} BPM`;
+        });
+
+        barsSlider.addEventListener('input', (e) => {
+            speedTrainerBars = parseInt(e.target.value);
+            barsVal.textContent = `${speedTrainerBars} Bars`;
+        });
+
+        // Accuracy Game Tap Scoring
+        accuracyTapBtn.addEventListener('click', () => {
+            if (!isPlaying || !gameActive) {
+                showModal("Game Notice", "Please start the metronome first to play the accuracy game!");
+                return;
+            }
+
+            const now = audioCtx.currentTime;
+            // Calculate timing precision relative to expected beat intervals
+            const secondsPerBeat = 60.0 / bpm;
+            const timeIntoBeat = (now - nextNoteTime + secondsPerBeat) % secondsPerBeat;
+            const distanceToBeat = Math.min(timeIntoBeat, secondsPerBeat - timeIntoBeat);
+            const errorMs = Math.round(distanceToBeat * 1000);
+
+            let points = 0;
+            let feedbackText = "";
+            if (errorMs <= 30) {
+                points = 100;
+                feedbackText = "🔥 PERFECT! (+100 pts)";
+            } else if (errorMs <= 70) {
+                points = 70;
+                feedbackText = "✨ GREAT! (+70 pts)";
+            } else if (errorMs <= 120) {
+                points = 40;
+                feedbackText = "👍 GOOD (+40 pts)";
+            } else {
+                points = 10;
+                feedbackText = "⚠️ OFF BEAT (+10 pts)";
+            }
+
+            accuracyScore += points;
+            gameScoreDisplay.textContent = `Score: ${accuracyScore}`;
+            gameFeedback.textContent = `${feedbackText} [${errorMs}ms error]`;
+        });
+
+        // Custom Modal handling
+        function showModal(title, message) {
+            document.getElementById('modal-title').textContent = title;
+            document.getElementById('modal-message').textContent = message;
+            document.getElementById('custom-modal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('custom-modal').classList.add('hidden');
+        }
+
+        // Initial setup
+        renderBeatDots();
+        updateSlidingWeightPosition();
+    </script>
+</body>
+</html>
